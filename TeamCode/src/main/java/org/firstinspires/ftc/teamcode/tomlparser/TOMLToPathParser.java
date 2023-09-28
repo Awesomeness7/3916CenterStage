@@ -1,0 +1,88 @@
+package org.firstinspires.ftc.teamcode.tomlparser;
+
+import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
+
+import android.annotation.SuppressLint;
+
+import com.acmerobotics.roadrunner.Pose2d;
+import com.acmerobotics.roadrunner.TrajectoryActionBuilder;
+import com.acmerobotics.roadrunner.Vector2d;
+
+import org.firstinspires.ftc.teamcode.MecanumDrive;
+import org.tomlj.Toml;
+import org.tomlj.TomlTable;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * TOML Parser method to use to avoid compiling every time a path is changed.
+ *
+ * @author Jude Naramor
+ * @author Maulik Verma
+ * @version May 2023
+ *
+ */
+
+public class TOMLToPathParser {
+    ArrayList<TomlTable> tomlSequences = new ArrayList<>();
+
+    @SuppressLint("NewApi")
+//    public TOMLToPathParser() {
+//        File dir = new File(".");
+//        for (File file : dir.listFiles()) {
+//            if(file.getName().endsWith(".toml")) {
+//                tomlSequences.add(Toml.parse(file.getPath()).getTable("sequence");
+//
+//            }
+//        }
+//    }
+    public TOMLToPathParser() {
+        //gets the file
+        File file = new File("~/TeamCode/java/tomlpaths/Blue_1_1.toml");
+        //parses the file through TOML
+        tomlSequences.add(Toml.parse(file.getPath()).getTable("sequence"));
+    }
+
+    public TrajectoryActionBuilder Parse(String filename)
+    {
+        File file = new File(filename);
+
+        tomlSequences.add(Toml.parse(file.getPath()).getTable("sequence"));
+        tomlSequences.add(Toml.parse(file.getPath()).getTable("initialPosition"));
+        double lastHeading = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(2);
+        double lastX = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(0);
+        double lastY = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(1);
+
+        Pose2d startPose = new Pose2d(lastX, lastY, Math.toRadians(lastHeading));
+        MecanumDrive drive = new MecanumDrive(hardwareMap, startPose);
+
+        TrajectoryActionBuilder trajSeq = drive.actionBuilder(startPose);
+        for (int i = 0; i < tomlSequences.get(0).getArray("sequence").toList().size() - 1; i++)
+        {
+            List list = (tomlSequences.get(0)).getArray("sequence.traj" + (i+1) + ".args").toList();
+            double[] array = (double[]) list.get(0); // x, y
+
+            //handle types of paths (i.e. constant, linear, spline, etc.
+            switch  ((String)(tomlSequences.get(0)).getArray("sequence.traj" + (i+1) + ".args").toList().get(0)) {
+                case "lineToLinearHeading":
+                    trajSeq.lineToXLinearHeading(array[0], Math.toRadians((int)list.get(1)));
+                    trajSeq.lineToYLinearHeading(array[1], Math.toRadians((int)list.get(1)));
+                    break;
+                case "lineToConstantHeading":
+                    trajSeq.lineToXConstantHeading(array[0]);
+                    trajSeq.lineToYConstantHeading(array[1]);
+                    break;
+                case "lineToSplineHeading":
+                    trajSeq.lineToXSplineHeading(array[0], Math.toRadians((int)list.get(1)));
+                    trajSeq.lineToYSplineHeading(array[1], Math.toRadians((int)list.get(1)));
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return trajSeq;
+    }
+}
