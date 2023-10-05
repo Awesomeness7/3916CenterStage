@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.tomlparser;
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
 
 import android.annotation.SuppressLint;
+import android.os.Environment;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.TrajectoryActionBuilder;
@@ -40,9 +41,12 @@ public class TOMLToPathParser {
 //    }
     public TOMLToPathParser() {
         //gets the file
-        File file = new File("~/TeamCode/java/tomlpaths/Blue_1_1.toml");
-        //parses the file through TOML
-        tomlSequences.add(Toml.parse(file.getPath()).getTable("sequence"));
+        String fsPath = String.format("%s/FIRST/toml/", Environment.getExternalStorageDirectory().getAbsolutePath());
+        File tomlDir = new File(fsPath);
+        tomlDir.mkdir();
+        for (File file : tomlDir.listFiles()) {
+            tomlSequences.add(Toml.parse(file.getPath()).getTable("sequence"));
+        }
     }
 
     public TrajectoryActionBuilder Parse(String filename)
