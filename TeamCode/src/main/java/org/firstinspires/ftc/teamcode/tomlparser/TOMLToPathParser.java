@@ -7,7 +7,7 @@ import android.os.Environment;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.TrajectoryActionBuilder;
-import com.acmerobotics.roadrunner.Vector2d;
+//import com.acmerobotics.roadrunner.Vector2d;
 
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.tomlj.Toml;
@@ -22,12 +22,13 @@ import java.util.List;
  *
  * @author Jude Naramor
  * @author Maulik Verma
- * @version May 2023
+ * @since May 2023
+ * @version October 2023
  *
  */
 
 public class TOMLToPathParser {
-    ArrayList<TomlTable> tomlSequences = new ArrayList<>();
+    ArrayList<TomlTable[]> tomlSequences = new ArrayList<>();
 
     @SuppressLint("NewApi")
 //    public TOMLToPathParser() {
@@ -44,17 +45,26 @@ public class TOMLToPathParser {
         String fsPath = String.format("%s/FIRST/toml/", Environment.getExternalStorageDirectory().getAbsolutePath());
         File tomlDir = new File(fsPath);
         tomlDir.mkdir();
+        //Adds each file in the directory to a predetermined list of preparsed files to be used later
         for (File file : tomlDir.listFiles()) {
-            tomlSequences.add(Toml.parse(file.getPath()).getTable("sequence"));
+            //Need to connect the initial position of a file to the main sequences (weird quirk in how trajectory sequence and roadrunner works)
+            tomlSequences.add(new TomlTable[]{Toml.parse(file.getPath()).getTable("sequence"), Toml.parse(file.getPath()).getTable("initialPosition")});
         }
     }
 
     public TrajectoryActionBuilder Parse(String filename)
     {
+        //Accesses the phone's file system
         File file = new File(filename);
 
-        tomlSequences.add(Toml.parse(file.getPath()).getTable("sequence"));
-        tomlSequences.add(Toml.parse(file.getPath()).getTable("initialPosition"));
+        /*
+        * If it alphabetical:
+        * 0, 1 - first alpha
+        * 2, 3 - second alpha
+        * 2n, and 2n+1 as the two important files, with 2n being sequence and 2n+1 being initialPosition
+        * */
+
+        tomlSequences.add(new TomlTable[]{Toml.parse(file.getPath()).getTable("sequence"), Toml.parse(file.getPath()).getTable("initialPosition")});
         double lastHeading = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(2);
         double lastX = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(0);
         double lastY = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(1);
