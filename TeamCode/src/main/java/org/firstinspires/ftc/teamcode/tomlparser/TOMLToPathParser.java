@@ -3,19 +3,26 @@ package org.firstinspires.ftc.teamcode.tomlparser;
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.hardwareMap;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.os.Environment;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.TrajectoryActionBuilder;
+import com.qualcomm.robotcore.util.WebHandlerManager;
 //import com.acmerobotics.roadrunner.Vector2d;
 
+import org.firstinspires.ftc.ftccommon.external.WebHandlerRegistrar;
+import org.firstinspires.ftc.robotcore.internal.webserver.WebHandler;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.tomlj.Toml;
 import org.tomlj.TomlTable;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import fi.iki.elonen.NanoHTTPD;
 
 /**
  * TOML Parser method to use to avoid compiling every time a path is changed.
@@ -50,6 +57,17 @@ public class TOMLToPathParser {
             //Need to connect the initial position of a file to the main sequences (weird quirk in how trajectory sequence and roadrunner works)
             tomlSequences.add(new TomlTable[]{Toml.parse(file.getPath()).getTable("sequence"), Toml.parse(file.getPath()).getTable("initialPosition")});
         }
+    }
+
+    @WebHandlerRegistrar
+    public static void registerPaths(Context context, WebHandlerManager manager) {
+        manager.register("/toml", new WebHandler() {
+            @Override
+            public NanoHTTPD.Response getResponse(NanoHTTPD.IHTTPSession session) throws IOException, NanoHTTPD.ResponseException {
+                if (session.getMethod() != NanoHTTPD.Method.GET) return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.BAD_REQUEST, NanoHTTPD.MIME_PLAINTEXT, "Get requests only");
+                return NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_HTML, context.getAssets().open(""));
+            }
+        });
     }
 
     public TrajectoryActionBuilder Parse(String filename)
