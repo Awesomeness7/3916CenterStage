@@ -1,0 +1,8 @@
+{
+	"scripts": {
+		"build": "esbuild"
+	},
+	"dependencies": {
+		"codeflask": "^1.4.1"
+	}
+}

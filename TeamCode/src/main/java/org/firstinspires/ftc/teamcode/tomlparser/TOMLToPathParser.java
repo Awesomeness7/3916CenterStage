@@ -4,10 +4,12 @@ import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.har
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.os.Environment;
 
 import com.acmerobotics.roadrunner.Pose2d;
 import com.acmerobotics.roadrunner.TrajectoryActionBuilder;
+import com.qualcomm.robotcore.util.RobotLog;
 import com.qualcomm.robotcore.util.WebHandlerManager;
 //import com.acmerobotics.roadrunner.Vector2d;
 
@@ -68,6 +70,27 @@ public class TOMLToPathParser {
                 return NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_HTML, context.getAssets().open(""));
             }
         });
+    }
+    private static void registerAssets(WebHandlerManager manager, AssetManager assetManager, String path){
+        try{
+            String[] list = assetManager.list(path);
+            assert list != null;
+            if(list.length != 0){
+                for(String name : list){
+                    registerAssets(manager, assetManager, path + "/" + name);
+                }
+            } else {
+                manager.register("/" + path, new WebHandler() {
+                    @Override
+                    public NanoHTTPD.Response getResponse(NanoHTTPD.IHTTPSession session) throws IOException, NanoHTTPD.ResponseException {
+                        if (session.getMethod() != NanoHTTPD.Method.GET) return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.BAD_REQUEST, NanoHTTPD.MIME_PLAINTEXT, "Get requests only");
+                        return NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_HTML, assetManager.open("web/"+path));
+                    }
+                });
+            }
+        }catch(IOException e){
+            RobotLog.setGlobalErrorMsg(new RuntimeException(e), "Web Assignment Failed");
+        }
     }
 
     public TrajectoryActionBuilder Parse(String filename)

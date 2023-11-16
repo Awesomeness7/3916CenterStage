@@ -10,7 +10,9 @@
 
 
 // Custom definitions may go here
-
+plugins {
+    id "com.github.node-gradle.node" version "2.2.4"
+}
 // Include common definitions from above.
 apply from: '../build.common.gradle'
 apply from: '../build.dependencies.gradle'
@@ -18,9 +20,37 @@ apply from: '../build.dependencies.gradle'
 android {
     namespace = 'org.firstinspires.ftc.teamcode'
 
+
     packagingOptions {
         jniLibs.useLegacyPackaging true
     }
+
+}
+
+node {
+    version = '18.9.1'
+    download = true
+    nodeModulesDir = file("${project.projectDir.parent}/web")
+}
+
+pnpm_build.dependsOn pnpm_install
+
+task cleanWebAssets(type: Delete) {
+    delete "${android.sourceSets.getByName("main").assets.srcDirs[0]}/web"
+}
+
+clean.dependsOn cleanWebAssets
+
+task copyWebAssets(type: Copy) {
+    from "${project.projectDir.parent}/web/dist"
+    into "${android.sourceSets.getByName("main").assets.srcDirs[0]}/web"
+}
+
+copyWebAssets.dependsOn cleanWebAssets
+copyWebAssets.dependsOn yarn_build
+
+android.libraryVariants.all { variant ->
+    variant.preBuildProvider.get().dependsOn copyWebAssets
 }
 
 repositories {
