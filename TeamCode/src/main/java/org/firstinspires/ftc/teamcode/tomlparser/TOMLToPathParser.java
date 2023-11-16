@@ -13,16 +13,21 @@ import com.qualcomm.robotcore.util.RobotLog;
 import com.qualcomm.robotcore.util.WebHandlerManager;
 //import com.acmerobotics.roadrunner.Vector2d;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.firstinspires.ftc.ftccommon.external.WebHandlerRegistrar;
 import org.firstinspires.ftc.robotcore.internal.webserver.WebHandler;
 import org.firstinspires.ftc.teamcode.MecanumDrive;
 import org.tomlj.Toml;
+import org.tomlj.TomlArray;
+import org.tomlj.TomlPosition;
 import org.tomlj.TomlTable;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import fi.iki.elonen.NanoHTTPD;
 
@@ -37,7 +42,7 @@ import fi.iki.elonen.NanoHTTPD;
  */
 
 public class TOMLToPathParser {
-    ArrayList<TomlTable[]> tomlSequences = new ArrayList<>();
+    ArrayList<Path> tomlSequences = new ArrayList<>();
 
     @SuppressLint("NewApi")
 //    public TOMLToPathParser() {
@@ -56,8 +61,10 @@ public class TOMLToPathParser {
         tomlDir.mkdir();
         //Adds each file in the directory to a predetermined list of preparsed files to be used later
         for (File file : tomlDir.listFiles()) {
+            //instanciating a new Path
+            Path path = new Path(file.getName(), Toml.parse(file.getPath()).getTable("sequence"), Toml.parse(file.getPath()).getTable("initialPosition"));
             //Need to connect the initial position of a file to the main sequences (weird quirk in how trajectory sequence and roadrunner works)
-            tomlSequences.add(new TomlTable[]{Toml.parse(file.getPath()).getTable("sequence"), Toml.parse(file.getPath()).getTable("initialPosition")});
+            tomlSequences.add(path);
         }
     }
 
@@ -99,39 +106,43 @@ public class TOMLToPathParser {
         File file = new File(filename);
 
         /*
-        * If it alphabetical:
+        * If its alphabetical:
         * 0, 1 - first alpha
         * 2, 3 - second alpha
         * 2n, and 2n+1 as the two important files, with 2n being sequence and 2n+1 being initialPosition
         * */
 
-        tomlSequences.add(new TomlTable[]{Toml.parse(file.getPath()).getTable("sequence"), Toml.parse(file.getPath()).getTable("initialPosition")});
-        double lastHeading = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(2);
-        double lastX = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(0);
-        double lastY = (double) ((tomlSequences.get(1).getArray("initialPosition")).toList()).get(1);
+        // Gets the initial values of each
+        double lastHeading = (double) ((Path.search(filename, tomlSequences).initialPosition.getArray("initialPosition")).toList()).get(2);
+        double lastX = (double) ((Path.search(filename, tomlSequences).initialPosition.getArray("initialPosition")).toList()).get(0);
+        double lastY = (double) ((Path.search(filename, tomlSequences).initialPosition.getArray("initialPosition")).toList()).get(1);
 
+        //Creates Pose of the starting values, and initializes the drive
         Pose2d startPose = new Pose2d(lastX, lastY, Math.toRadians(lastHeading));
         MecanumDrive drive = new MecanumDrive(hardwareMap, startPose);
 
+        //creates the Trajectory Builder that we use to create the paths, and creates an instance of the main sequence
         TrajectoryActionBuilder trajSeq = drive.actionBuilder(startPose);
-        for (int i = 0; i < tomlSequences.get(0).getArray("sequence").toList().size() - 1; i++)
+        TomlTable mainPath = Path.search(filename, tomlSequences).mainPath;
+        for (int i = 0; i < mainPath.getArray("sequences").size() - 1; i++)
         {
-            List list = (tomlSequences.get(0)).getArray("sequence.traj" + (i+1) + ".args").toList();
-            double[] array = (double[]) list.get(0); // x, y
+            //creates the specific list for this specific trajectory point, and creates an array for x, y coordinates
+            List trajectoryList = (List)mainPath.get("sequence.traj" + (i+1) + ".args");
+            double[] array = (double[]) trajectoryList.get(0); // x, y
 
             //handle types of paths (i.e. constant, linear, spline, etc.
-            switch  ((String)(tomlSequences.get(0)).getArray("sequence.traj" + (i+1) + ".args").toList().get(0)) {
+            switch  ((String)trajectoryList.get(0)) {
                 case "lineToLinearHeading":
-                    trajSeq.lineToXLinearHeading(array[0], Math.toRadians((int)list.get(1)));
-                    trajSeq.lineToYLinearHeading(array[1], Math.toRadians((int)list.get(1)));
+                    trajSeq.lineToXLinearHeading(array[0], Math.toRadians((int)trajectoryList.get(1)));
+                    trajSeq.lineToYLinearHeading(array[1], Math.toRadians((int)trajectoryList.get(1)));
                     break;
                 case "lineToConstantHeading":
                     trajSeq.lineToXConstantHeading(array[0]);
                     trajSeq.lineToYConstantHeading(array[1]);
                     break;
                 case "lineToSplineHeading":
-                    trajSeq.lineToXSplineHeading(array[0], Math.toRadians((int)list.get(1)));
-                    trajSeq.lineToYSplineHeading(array[1], Math.toRadians((int)list.get(1)));
+                    trajSeq.lineToXSplineHeading(array[0], Math.toRadians((int)trajectoryList.get(1)));
+                    trajSeq.lineToYSplineHeading(array[1], Math.toRadians((int)trajectoryList.get(1)));
                     break;
                 default:
                     break;
@@ -139,5 +150,36 @@ public class TOMLToPathParser {
         }
 
         return trajSeq;
+    }
+}
+
+class Path
+{
+    //Class used to link initial position and the main path components because the way
+    //the toml formatting works is kinda goofy
+    public TomlTable initialPosition;
+    public TomlTable mainPath;
+    public String name;
+
+    //Constructor
+    public Path(String name, TomlTable mainPath, TomlTable initialPosition)
+    {
+        this.name = name;
+        this.mainPath = mainPath;
+        this.initialPosition = initialPosition;
+    }
+
+    //Searches for the correct file in the array of all paths
+    public static Path search(String name, ArrayList<Path> list)
+    {
+        for (Path p : list)
+        {
+            if ((p.name).equals(name))
+            {
+                return p;
+            }
+        }
+        //returns a default if name is not found (probably will just throw an error somewhere)
+        return new Path("You screwed up broski", null, null);
     }
 }
