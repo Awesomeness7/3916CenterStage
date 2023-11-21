@@ -33,7 +33,11 @@ node {
     nodeModulesDir = file("${project.projectDir.parent}/web")
 }
 
-npm_build.dependsOn npm_install
+
+task buildNPM(type: NpmTask) {
+    args = ["run", "build"]
+}
+buildNPM.dependsOn npm_install
 
 task cleanWebAssets(type: Delete) {
     delete "${android.sourceSets.getByName("main").assets.srcDirs[0]}/web"
@@ -47,7 +51,7 @@ task copyWebAssets(type: Copy) {
 }
 
 copyWebAssets.dependsOn cleanWebAssets
-copyWebAssets.dependsOn npm_build
+copyWebAssets.dependsOn buildNPM
 
 repositories {
     maven {
