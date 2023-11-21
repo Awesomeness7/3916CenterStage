@@ -1,8 +1,12 @@
 {
 	"scripts": {
-		"build": "esbuild"
+		"dev": "vite",
+		"build": "vite build"
 	},
 	"dependencies": {
 		"codeflask": "^1.4.1"
+	},
+	"devDependencies": {
+		"vite": "^4.4.9"
 	}
 }

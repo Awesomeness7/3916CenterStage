@@ -70,13 +70,7 @@ public class TOMLToPathParser {
 
     @WebHandlerRegistrar
     public static void registerPaths(Context context, WebHandlerManager manager) {
-        manager.register("/toml", new WebHandler() {
-            @Override
-            public NanoHTTPD.Response getResponse(NanoHTTPD.IHTTPSession session) throws IOException, NanoHTTPD.ResponseException {
-                if (session.getMethod() != NanoHTTPD.Method.GET) return NanoHTTPD.newFixedLengthResponse(NanoHTTPD.Response.Status.BAD_REQUEST, NanoHTTPD.MIME_PLAINTEXT, "Get requests only");
-                return NanoHTTPD.newChunkedResponse(NanoHTTPD.Response.Status.OK, NanoHTTPD.MIME_HTML, context.getAssets().open(""));
-            }
-        });
+        registerAssets(manager, context.getAssets(), "toml");
     }
     private static void registerAssets(WebHandlerManager manager, AssetManager assetManager, String path){
         try{
