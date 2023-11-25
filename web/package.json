@@ -4,7 +4,8 @@
 		"build": "vite build"
 	},
 	"dependencies": {
-		"codeflask": "^1.4.1"
+		"codeflask": "^1.4.1",
+		"prismjs": "^1.29.0"
 	},
 	"devDependencies": {
 		"vite": "^4.4.9"
